@@ -1,4 +1,5 @@
-import { InteractionEvent, InteractionManager } from '@pixi/interaction';
+// import { InteractionEvent, InteractionManager } from '@pixi/interaction';
+import { FederatedPointerEvent, EventSystem } from '@pixi/events';
 import { Live2DModel } from './Live2DModel';
 
 /**
@@ -31,19 +32,22 @@ export class InteractionMixin {
     /**
      * Local reference used to clean up the event listeners when destroying the model.
      */
-    interactionManager?: InteractionManager;
+    // interactionManager?: InteractionManager;
+    interactionManager?: EventSystem;
 
     /**
      * Registers interaction by subscribing to the `PIXI.InteractionManager`.
      */
-    registerInteraction(this: Live2DModel<any>, manager?: InteractionManager): void {
+    // registerInteraction(this: Live2DModel<any>, manager?: InteractionManager): void {
+    registerInteraction(this: Live2DModel<any>, manager?: EventSystem): void {
         if (manager !== this.interactionManager) {
             this.unregisterInteraction();
 
             if (this._autoInteract && manager) {
                 this.interactionManager = manager;
 
-                manager.on('pointermove', onPointerMove, this);
+                // manager.on('pointermove', onPointerMove, this);
+                manager.domElement.addEventListener('pointermove', onPointerMove.bind(this));
             }
         }
     }
@@ -53,16 +57,20 @@ export class InteractionMixin {
      */
     unregisterInteraction(this: Live2DModel<any>): void {
         if (this.interactionManager) {
-            this.interactionManager?.off('pointermove', onPointerMove, this);
+            // this.interactionManager?.off('pointermove', onPointerMove, this);
+            this.interactionManager?.domElement.removeEventListener("pointermove", onPointerMove.bind(this));
             this.interactionManager = undefined;
         }
     }
 }
 
-function onTap(this: Live2DModel<any>, event: InteractionEvent): void {
+// function onTap(this: Live2DModel<any>, event: InteractionEvent): void {
+function onTap(this: Live2DModel<any>, event: FederatedPointerEvent): void {
     this.tap(event.data.global.x, event.data.global.y);
 }
 
-function onPointerMove(this: Live2DModel<any>, event: InteractionEvent) {
-    this.focus(event.data.global.x, event.data.global.y);
+// function onPointerMove(this: Live2DModel<any>, event: InteractionEvent) {
+function onPointerMove(this: Live2DModel<any>, event: PointerEvent) {
+    // this.focus(event.data.global.x, event.data.global.y);
+    this.focus(event.x, event.y);
 }

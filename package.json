@@ -9,11 +9,6 @@
       "import": "./dist/index.es.js",
       "require": "./dist/index.js"
     },
-    "./cubism2": {
-      "types": "./types/index.d.ts",
-      "import": "./dist/cubism2.es.js",
-      "require": "./dist/cubism2.js"
-    },
     "./cubism4": {
       "types": "./types/index.d.ts",
       "import": "./dist/cubism4.es.js",
@@ -52,14 +47,15 @@
   ],
   "types": "types/index.d.ts",
   "peerDependencies": {
-    "@pixi/core": "^6",
-    "@pixi/display": "^6",
-    "@pixi/loaders": "^6",
-    "@pixi/math": "^6",
-    "@pixi/sprite": "^6",
-    "@pixi/utils": "^6"
+    "@pixi/core": "^7",
+    "@pixi/display": "^7",
+    "@pixi/math": "^7",
+    "@pixi/sprite": "^7",
+    "@pixi/utils": "^7",
+    "@pixi/sound": "^5"
   },
   "devDependencies": {
+    "@pixi/sound": "^5.2.0",
     "@types/chai": "^4.3.1",
     "@types/chai-as-promised": "^7.1.5",
     "@types/lodash-es": "^4.17.6",
@@ -77,7 +73,7 @@
     "jszip": "^3.10.0",
     "lodash-es": "^4.17.21",
     "node-fetch": "^2",
-    "pixi.js": "^6.4.2",
+    "pixi.js": "^7.2.4",
     "rimraf": "^3.0.2",
     "sinon": "^14.0.0",
     "sinon-chai": "^3.7.0",

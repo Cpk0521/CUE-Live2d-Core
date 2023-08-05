@@ -1,13 +1,13 @@
-import { InternalModel, ModelSettings, MotionPriority } from '@/cubism-common';
+import { InternalModel, ModelSettings, MotionPriority, IAudioTypes, Live2dSoundManager} from '@/cubism-common';
 import { MotionManagerOptions } from '@/cubism-common/MotionManager';
 import type { Live2DFactoryOptions } from '@/factory/Live2DFactory';
 import { Live2DFactory } from '@/factory/Live2DFactory';
 import { Renderer, Texture } from '@pixi/core';
 import { Container } from '@pixi/display';
 import { Matrix, ObservablePoint, Point, Rectangle } from '@pixi/math';
-import type { Ticker } from '@pixi/ticker';
+// import type { Ticker } from '@pixi/ticker';
 import { InteractionMixin } from './InteractionMixin';
-import { Live2DTransform } from './Live2DTransform';
+// import { Live2DTransform } from './Live2DTransform';
 import { JSONObject } from './types/helpers';
 import { applyMixins, logger } from './utils';
 
@@ -30,8 +30,8 @@ const tempPoint = new Point();
 const tempMatrix = new Matrix();
 
 // a reference to Ticker class, defaults to window.PIXI.Ticker
-type TickerClass = typeof Ticker;
-let tickerRef: TickerClass | undefined;
+// type TickerClass = typeof Ticker;
+// let tickerRef: TickerClass | undefined;
 
 export interface Live2DModel<IM extends InternalModel = InternalModel> extends InteractionMixin {}
 
@@ -90,9 +90,9 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     /**
      * Registers the class of `PIXI.Ticker` for auto updating.
      */
-    static registerTicker(tickerClass: TickerClass): void {
-        tickerRef = tickerClass;
-    }
+    // static registerTicker(tickerClass: TickerClass): void {
+    //     tickerRef = tickerClass;
+    // }
 
     /**
      * Tag for logging.
@@ -110,7 +110,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     textures: Texture[] = [];
 
     /** @override */
-    transform = new Live2DTransform();
+    // transform = new Live2DTransform();
 
     /**
      * The anchor behaves like the one in `PIXI.Sprite`, where `(0, 0)` means the top left
@@ -134,11 +134,25 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     deltaTime: DOMHighResTimeStamp = 0;
 
     /**
-     * True if the model has been updated at least once since created.
+     * Elapsed time in milliseconds from last frame.
      */
-    wasUpdated = false;
+    lastTime : DOMHighResTimeStamp = 0;
 
     protected _autoUpdate = false;
+
+    /**
+     * Allow to load custom soundManager
+     */
+    get soundManager() : Live2dSoundManager | undefined{
+        return this.internalModel.motionManager.soundManager ;
+    }
+
+    set soundManager(manager : Live2dSoundManager | undefined) {
+        if(this.internalModel.motionManager.soundManager == manager){
+            return;
+        }
+        this.internalModel.motionManager.soundManager = manager
+    }
 
     /**
      * Enables automatic updating. Requires {@link Live2DModel.registerTicker} or the global `window.PIXI.Ticker`.
@@ -147,24 +161,50 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         return this._autoUpdate;
     }
 
+    // set autoUpdate(autoUpdate: boolean) {
+    //     tickerRef ||= (window as any).PIXI?.Ticker;
+
+    //     if (autoUpdate) {
+    //         if (!this._destroyed) {
+    //             if (tickerRef) {
+    //                 tickerRef.shared.add(this.onTickerUpdate, this);
+
+    //                 this._autoUpdate = true;
+    //             } else {
+    //                 logger.warn(this.tag, 'No Ticker registered, please call Live2DModel.registerTicker(Ticker).');
+    //             }
+    //         }
+    //     } else {
+    //         tickerRef?.shared.remove(this.onTickerUpdate, this);
+
+    //         this._autoUpdate = false;
+    //     }
+    // }
+
     set autoUpdate(autoUpdate: boolean) {
-        tickerRef ||= (window as any).PIXI?.Ticker;
-
-        if (autoUpdate) {
-            if (!this._destroyed) {
-                if (tickerRef) {
-                    tickerRef.shared.add(this.onTickerUpdate, this);
-
-                    this._autoUpdate = true;
-                } else {
-                    logger.warn(this.tag, 'No Ticker registered, please call Live2DModel.registerTicker(Ticker).');
-                }
-            }
-        } else {
-            tickerRef?.shared.remove(this.onTickerUpdate, this);
-
-            this._autoUpdate = false;
+        if(autoUpdate !== this._autoUpdate) {
+            this._autoUpdate = autoUpdate;
+            this.updateTransform = autoUpdate ? Live2DModel.prototype.autoUpdateTransform : Container.prototype.updateTransform;
         }
+    }
+
+    /**
+     * When autoupdate is set to yes this function is used as pixi's updateTransform function
+     */
+    autoUpdateTransform(){
+
+        if(this._autoUpdate){
+            this.lastTime = this.lastTime || performance.now();
+            const timeDelta = (performance.now() - this.lastTime);
+
+            this.lastTime = performance.now();
+            this.update(timeDelta);
+        }
+        else{
+            this.lastTime = 0;
+        }
+
+        Container.prototype.updateTransform.call(this);
     }
 
     constructor(options?: Live2DModelOptions) {
@@ -182,7 +222,8 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
 
         const _options = Object.assign({
             autoUpdate: true,
-            autoInteract: true,
+            // autoInteract: true,
+            autoInteract: false,
         }, options);
 
         if (_options.autoInteract) {
@@ -225,6 +266,14 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 : this.internalModel.motionManager.expressionManager.setExpression(id);
         }
         return Promise.resolve(false);
+    }
+
+    /**
+     * play a sound
+     * @param source - voice source
+     */
+    playVoice<V extends IAudioTypes | string = string>(source : V) : Promise<void>{
+        return this.internalModel.motionManager.startVoice(source);
     }
 
     /**
@@ -323,9 +372,9 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     /**
      * An update callback to be added to `PIXI.Ticker` and invoked every tick.
      */
-    onTickerUpdate(): void {
-        this.update(tickerRef!.shared.deltaMS);
-    }
+    // onTickerUpdate(): void {
+    //     this.update(tickerRef!.shared.deltaMS);
+    // }
 
     /**
      * Updates the model. Note this method just updates the timer,
@@ -336,17 +385,12 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         this.deltaTime += dt;
         this.elapsedTime += dt;
 
-        this.wasUpdated = true;
-
         // don't call `this.internalModel.update()` here, because it requires WebGL context
     }
 
     override _render(renderer: Renderer): void {
-        this.registerInteraction(renderer.plugins.interaction);
-
-        if (!this.wasUpdated) {
-            return;
-        }
+        // this.registerInteraction(renderer.plugins.interaction);
+        this.registerInteraction(renderer.events);
 
         // reset certain systems in renderer to make Live2D's drawing system compatible with Pixi
         renderer.batch.reset();

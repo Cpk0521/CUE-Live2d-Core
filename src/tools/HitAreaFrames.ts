@@ -1,7 +1,8 @@
 import { Live2DModel } from '@/Live2DModel';
 import { Renderer } from '@pixi/core';
 import { Graphics } from '@pixi/graphics';
-import { InteractionEvent } from '@pixi/interaction';
+// import { InteractionEvent } from '@pixi/interaction';
+import { FederatedPointerEvent } from '@pixi/events';
 import { Text, TextStyle } from '@pixi/text';
 import { Rectangle } from '@pixi/math';
 
@@ -45,8 +46,10 @@ export class HitAreaFrames extends Graphics {
         });
     }
 
-    onPointerMove(e: InteractionEvent) {
-        const hitAreaNames = (this.parent as Live2DModel).hitTest(e.data.global.x, e.data.global.y);
+    // onPointerMove(e: InteractionEvent) {
+    onPointerMove(e: FederatedPointerEvent) {
+        // const hitAreaNames = (this.parent as Live2DModel).hitTest(e.data.global.x, e.data.global.y);
+        const hitAreaNames = (this.parent as Live2DModel).hitTest(e.global.x, e.global.y);
 
         this.texts.forEach(text => {
             text.visible = hitAreaNames.includes(text.text);

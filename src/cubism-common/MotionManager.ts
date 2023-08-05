@@ -2,7 +2,7 @@ import { config } from '@/config';
 import { ExpressionManager } from '@/cubism-common/ExpressionManager';
 import { ModelSettings } from '@/cubism-common/ModelSettings';
 import { MotionPriority, MotionState } from '@/cubism-common/MotionState';
-import { SoundManager } from '@/cubism-common/SoundManager';
+import { Live2dSoundManager, HTMLSoundManager, IAudioTypes} from '@/cubism-common/SoundManager';
 import { logger } from '@/utils';
 import { EventEmitter } from '@pixi/utils';
 import { JSONObject, Mutable } from '../types/helpers';
@@ -87,9 +87,24 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
     state = new MotionState();
 
     /**
+     * Sound Manager
+     */
+    soundManager? : Live2dSoundManager = new HTMLSoundManager();
+
+    /**
      * Audio element of the current motion if a sound file is defined with it.
      */
-    currentAudio?: HTMLAudioElement;
+    currentAudio?: IAudioTypes;
+
+    /**
+     * Analyzer element for the current sound being played.
+     */
+    currentAnalyzer?: AnalyserNode;
+
+    /**
+     * Context element for the current sound being played.
+     */
+    currentContext?: AudioContext;
 
     /**
      * Flags there's a motion playing.
@@ -219,10 +234,13 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
 
         if (this.currentAudio) {
             // TODO: reuse the audio?
-            SoundManager.dispose(this.currentAudio);
+            // SoundManager.dispose(this.currentAudio);
+            this.soundManager?.dispose(this.currentAudio);
         }
 
-        let audio: HTMLAudioElement | undefined;
+        let audio: IAudioTypes | undefined;
+        let analyzer: AnalyserNode | undefined;
+        let context: AudioContext | undefined;
 
         if (config.sound) {
             const soundURL = this.getSoundFile(definition);
@@ -230,13 +248,28 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
             if (soundURL) {
                 try {
                     // start to load the audio
-                    audio = SoundManager.add(
+                    // audio = SoundManager.add(
+                    //     this.settings.resolveURL(soundURL),
+                    //     () => this.currentAudio = undefined,
+                    //     () => this.currentAudio = undefined,
+                    // );
+
+                    audio = this.soundManager?.add(
                         this.settings.resolveURL(soundURL),
                         () => this.currentAudio = undefined,
                         () => this.currentAudio = undefined,
                     );
 
                     this.currentAudio = audio;
+
+                    // Add context
+                    context = this.soundManager?.addContext(this.currentAudio!);
+                    this.currentContext = context;
+                    
+                    // Add analyzer
+                    analyzer = this.soundManager?.addAnalyzer(this.currentAudio!, this.currentContext!);
+                    this.currentAnalyzer = analyzer;
+
                 } catch (e) {
                     logger.warn(this.tag, 'Failed to create audio', soundURL, e);
                 }
@@ -244,10 +277,14 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
         }
 
         const motion = await this.loadMotion(group, index);
-
+        
         if (audio) {
-            const readyToPlay = SoundManager.play(audio)
-                .catch(e => logger.warn(this.tag, 'Failed to play audio', audio!.src, e));
+
+            // const readyToPlay = SoundManager.play(audio)
+            //     .catch(e => logger.warn(this.tag, 'Failed to play audio', audio!.src, e));
+
+            const readyToPlay = this.soundManager?.play(audio)
+                .catch(e => logger.warn(this.tag, 'Failed to play audio', e));
 
             if (config.motionSync) {
                 // wait until the audio is ready
@@ -257,7 +294,8 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
 
         if (!this.state.start(motion, group, index, priority)) {
             if (audio) {
-                SoundManager.dispose(audio);
+                // SoundManager.dispose(audio);
+                this.soundManager?.dispose(audio);
                 this.currentAudio = undefined;
             }
 
@@ -316,7 +354,8 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
         this.state.reset();
 
         if (this.currentAudio) {
-            SoundManager.dispose(this.currentAudio);
+            // SoundManager.dispose(this.currentAudio);
+            this.soundManager?.dispose(this.currentAudio);
             this.currentAudio = undefined;
         }
     }
@@ -347,6 +386,55 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
         }
 
         return this.updateParameters(model, now);
+    }
+
+    async startVoice(source : string | IAudioTypes) : Promise<any>{
+        let audio: IAudioTypes | undefined;
+
+        if(this.currentAudio){
+            this.stopVoice();
+        }
+
+        if(typeof source === 'string'){
+            audio = this.soundManager?.add(
+                this.settings.resolveURL(source),
+                () => this.currentAudio = undefined,
+                () => this.currentAudio = undefined,
+            );
+        }
+        else{
+            audio = source
+        }
+        
+        if(audio){
+            this.currentAudio = audio;
+            //Add context
+            this.currentContext = this.soundManager?.addContext(this.currentAudio);
+            // Add analyzer
+            this.currentAnalyzer = this.soundManager?.addAnalyzer(this.currentAudio, this.currentContext!);
+
+            return this.soundManager?.play(audio);
+        }
+
+        return false
+    }
+
+    stopVoice(){
+        if (this.currentAudio) {
+            this.soundManager?.dispose(this.currentAudio);
+            this.currentAudio = undefined;
+        }
+    }
+
+    /**
+     * Move the mouth
+     */
+    mouthSync(): number {
+        if (this.currentAnalyzer) {
+            return this.soundManager?.analyze(this.currentAnalyzer) ?? 0;
+        } else {
+            return 0;
+        }
     }
 
     /**

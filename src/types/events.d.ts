@@ -111,6 +111,11 @@ export interface InternalModelEvents {
     beforeModelUpdate: [];
 
     /**
+     * @event - lipSyncUpdate
+     */
+    lipSyncUpdate : [];
+
+    /**
      * @event - Before destroyed.
      */
     destroy: [];

@@ -2,8 +2,8 @@ const { build } = require('vite');
 const path = require('path');
 
 const entries = [
-    { entry: 'src/csm2.ts', name: 'cubism2' },
-    { entry: 'src/csm4.ts', name: 'cubism4' },
+    // { entry: 'src/csm2.ts', name: 'cubism2' },
+    // { entry: 'src/csm4.ts', name: 'cubism4' },
     { entry: 'src/index.ts', name: 'index' },
     { entry: 'src/extra.ts', name: 'extra' },
 ];
