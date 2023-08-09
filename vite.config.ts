@@ -32,7 +32,7 @@ export default defineConfig(({ command, mode }) => {
                     extend: true,
                     globals(id: string) {
                         if (id.startsWith('@pixi/')) {
-                            return require(`./node_modules/${id}/package.json`).namespace || 'PIXI';
+                            return require(`./node_modules/${id}/package.json`).namespace || (id.endsWith('utils') ? 'PIXI.utils' : 'PIXI');
                         }
                     },
                 },
